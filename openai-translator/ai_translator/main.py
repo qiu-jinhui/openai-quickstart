@@ -16,7 +16,8 @@ if __name__ == "__main__":
 
     model_name = args.openai_model if args.openai_model else config['OpenAIModel']['model']
     api_key = args.openai_api_key if args.openai_api_key else config['OpenAIModel']['api_key']
-    model = OpenAIModel(model=model_name, api_key=api_key)
+    base_url = args.openai_base_url if args.openai_base_url else config['OpenAIModel']['base_url']
+    model = OpenAIModel(model=model_name, api_key=api_key, base_url=base_url)
 
 
     pdf_file_path = args.book if args.book else config['common']['book']
