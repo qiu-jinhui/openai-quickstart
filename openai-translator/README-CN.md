@@ -7,6 +7,7 @@
   - 优化了表格布局的处理，包括表格边框和单元格位置的精确提取
   - 改进了文本元素的分类算法，能够更准确地识别标题和段落
 
+![update_feature_0](images/update_feature_0.png)
 ---
 
 # OpenAI-Translator

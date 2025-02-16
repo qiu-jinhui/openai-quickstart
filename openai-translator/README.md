@@ -6,7 +6,8 @@
   - Added support for extracting and maintaining original font and font size style information
   - Enhanced table layout processing, including precise extraction of table borders and cell positions
   - Improved text element classification algorithm for more accurate identification of titles and paragraphs
-
+  
+![update_feature_0](images/update_feature_0.png)
 ---
 
 # OpenAI-Translator
