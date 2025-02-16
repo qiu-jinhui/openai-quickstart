@@ -1,0 +1,343 @@
+# PDF翻译器增强方案：保留原始PDF布局
+
+## 1. 当前状态分析
+目前的PDF翻译实现主要依赖pdfplumber库进行PDF解析，将内容分为文本和表格两种类型进行处理。现有实现的局限性：
+- 没有保存原始文本的位置信息
+- 没有保存字体、样式等格式信息
+- 输出时无法还原原始布局
+
+## 2. 技术方案
+
+### 2.1 文本内容提取方法
+
+1. 标题和段落识别：
+```python
+def extract_text_elements(pdf_page):
+    # 提取所有文本元素
+    chars = pdf_page.chars
+    
+    # 按字体大小和样式分组
+    text_elements = []
+    current_line = []
+    last_y = None
+    
+    # 对字符按y坐标排序，确保从上到下处理
+    sorted_chars = sorted(chars, key=lambda x: -x['top'])
+    
+    for char in sorted_chars:
+        if last_y is None:
+            current_line.append(char)
+        else:
+            # 如果y坐标差异小于字体大小的一半，认为是同一行
+            if abs(char['top'] - last_y) < char['size'] * 0.5:
+                current_line.append(char)
+            else:
+                # 处理当前行
+                if current_line:
+                    line_info = process_line(current_line)
+                    text_elements.append(line_info)
+                current_line = [char]
+        last_y = char['top']
+    
+    # 处理最后一行
+    if current_line:
+        line_info = process_line(current_line)
+        text_elements.append(line_info)
+    
+    # 识别标题和段落
+    elements = classify_elements(text_elements)
+    return elements
+
+def process_line(chars):
+    """处理单行文本，提取布局信息"""
+    return {
+        'text': ''.join(c['text'] for c in chars),
+        'position': {
+            'x0': min(c['x0'] for c in chars),
+            'x1': max(c['x1'] for c in chars),
+            'y0': min(c['top'] for c in chars),
+            'y1': max(c['bottom'] for c in chars)
+        },
+        'font': chars[0]['fontname'],
+        'size': chars[0]['size'],
+        'chars': chars  # 保留原始字符信息
+    }
+
+def classify_elements(text_elements):
+    """将文本元素分类为标题和段落"""
+    # 计算字体大小的分布
+    sizes = [elem['size'] for elem in text_elements]
+    avg_size = sum(sizes) / len(sizes)
+    
+    classified = []
+    for elem in text_elements:
+        # 判断是否为标题
+        is_title = (
+            elem['size'] > avg_size * 1.2 or  # 字体显著大于平均值
+            elem['font'].lower().find('bold') >= 0 or  # 粗体
+            all(c.isupper() for c in elem['text'] if c.isalpha())  # 全大写
+        )
+        
+        elem['type'] = 'title' if is_title else 'paragraph'
+        classified.append(elem)
+    
+    return classified
+```
+
+2. 表格提取增强：
+```python
+def extract_table_with_layout(pdf_page):
+    # 提取表格
+    tables = pdf_page.extract_tables()
+    table_layouts = []
+    
+    # 获取页面上的所有线条
+    h_lines = pdf_page.horizontal_edges
+    v_lines = pdf_page.vertical_edges
+    
+    for table in tables:
+        # 找到表格的边界
+        table_chars = []
+        for row in table:
+            for cell in row:
+                if cell:
+                    cell_chars = [
+                        c for c in pdf_page.chars
+                        if c['text'] in cell
+                    ]
+                    table_chars.extend(cell_chars)
+        
+        if not table_chars:
+            continue
+            
+        # 计算表格边界
+        table_bbox = {
+            'x0': min(c['x0'] for c in table_chars),
+            'x1': max(c['x1'] for c in table_chars),
+            'y0': min(c['top'] for c in table_chars),
+            'y1': max(c['bottom'] for c in table_chars)
+        }
+        
+        # 查找表格线条
+        table_h_lines = [
+            line for line in h_lines
+            if (line['x0'] >= table_bbox['x0'] - 5 and
+                line['x1'] <= table_bbox['x1'] + 5)
+        ]
+        
+        table_v_lines = [
+            line for line in v_lines
+            if (line['y0'] >= table_bbox['y0'] - 5 and
+                line['y1'] <= table_bbox['y1'] + 5)
+        ]
+        
+        # 构建单元格布局信息
+        cells_layout = []
+        for i, row in enumerate(table):
+            for j, cell in enumerate(row):
+                if cell:
+                    cell_chars = [
+                        c for c in pdf_page.chars
+                        if c['text'] in cell
+                    ]
+                    if cell_chars:
+                        cell_info = {
+                            'text': cell,
+                            'position': {
+                                'x0': min(c['x0'] for c in cell_chars),
+                                'x1': max(c['x1'] for c in cell_chars),
+                                'y0': min(c['top'] for c in cell_chars),
+                                'y1': max(c['bottom'] for c in cell_chars)
+                            },
+                            'font': cell_chars[0]['fontname'],
+                            'size': cell_chars[0]['size'],
+                            'row': i,
+                            'col': j
+                        }
+                        cells_layout.append(cell_info)
+        
+        table_layouts.append({
+            'cells': cells_layout,
+            'bbox': table_bbox,
+            'h_lines': table_h_lines,
+            'v_lines': table_v_lines
+        })
+    
+    return table_layouts
+```
+
+3. 布局保持输出：
+```python
+class PDFWriter:
+    def create_pdf_with_layout(self, elements, output_path):
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.pagesizes import letter
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        
+        # 注册字体（确保支持中文）
+        pdfmetrics.registerFont(TTFont('SimSun', 'SimSun.ttf'))
+        
+        c = canvas.Canvas(output_path, pagesize=letter)
+        page_height = letter[1]  # PDF坐标系从底部开始
+        
+        # 绘制文本元素
+        for elem in elements:
+            if elem['type'] in ['title', 'paragraph']:
+                # 转换坐标（pdfplumber和reportlab使用不同的坐标系）
+                y = page_height - elem['position']['y1']
+                
+                # 设置字体和大小
+                font_name = 'SimSun'  # 使用中文字体
+                c.setFont(font_name, elem['size'])
+                
+                # 绘制文本
+                c.drawString(
+                    elem['position']['x0'],
+                    y,
+                    elem['text']
+                )
+            
+            elif elem['type'] == 'table':
+                # 绘制表格边框
+                for line in elem['h_lines']:
+                    c.line(
+                        line['x0'],
+                        page_height - line['y0'],
+                        line['x1'],
+                        page_height - line['y1']
+                    )
+                
+                for line in elem['v_lines']:
+                    c.line(
+                        line['x0'],
+                        page_height - line['y0'],
+                        line['x1'],
+                        page_height - line['y1']
+                    )
+                
+                # 绘制单元格内容
+                for cell in elem['cells']:
+                    c.setFont('SimSun', cell['size'])
+                    c.drawString(
+                        cell['position']['x0'],
+                        page_height - cell['position']['y1'],
+                        cell['text']
+                    )
+        
+        c.save()
+```
+
+4. 集成到PDFParser类：
+```python
+class PDFParser:
+    def parse_pdf(self, pdf_file_path: str, pages: Optional[int] = None) -> Book:
+        book = Book(pdf_file_path)
+        
+        with pdfplumber.open(pdf_file_path) as pdf:
+            pages_to_parse = pdf.pages[:pages] if pages else pdf.pages
+            
+            for pdf_page in pages_to_parse:
+                page = Page()
+                
+                # 1. 提取文本元素（标题和段落）
+                text_elements = extract_text_elements(pdf_page)
+                for elem in text_elements:
+                    content = Content(
+                        content_type=ContentType.TEXT,
+                        element_type=elem['type'],
+                        original=elem['text'],
+                        position=elem['position'],
+                        font=elem['font'],
+                        font_size=elem['size']
+                    )
+                    page.add_content(content)
+                
+                # 2. 提取表格
+                tables = extract_table_with_layout(pdf_page)
+                for table in tables:
+                    table_content = TableContent(
+                        original=table['cells'],
+                        position=table['bbox'],
+                        borders={
+                            'horizontal': table['h_lines'],
+                            'vertical': table['v_lines']
+                        }
+                    )
+                    page.add_content(table_content)
+                
+                book.add_page(page)
+        
+        return book
+```
+
+## 3. 数据结构改进
+
+更新Content类以支持更丰富的布局信息：
+```python
+class Content:
+    content_type: ContentType  # TEXT 或 TABLE
+    element_type: str         # 对于文本可以是 'title' 或 'paragraph'
+    original: str            # 原始文本内容
+    translation: str         # 翻译后的文本
+    position: Dict[str, float]  # 包含x0, x1, y0, y1坐标
+    font: str               # 字体信息
+    font_size: float        # 字号
+    style: Dict[str, Any]   # 其他样式信息（粗体、斜体等）
+
+class TableContent(Content):
+    cells: List[Dict]       # 单元格信息
+    borders: Dict           # 表格边框信息
+    position: Dict[str, float]  # 表格整体位置
+```
+
+## 4. 实现步骤
+
+1. 更新依赖：
+```
+pdfplumber>=0.10.0
+reportlab>=4.0.0
+```
+
+2. 实现顺序：
+   - 更新数据结构
+   - 实现文本元素提取和分类
+   - 实现表格布局提取
+   - 实现PDF布局输出
+   - 添加中文字体支持
+
+3. 测试要点：
+   - 标题识别准确性
+   - 段落布局保持
+   - 表格边框还原
+   - 中文字体显示
+   - 整体布局对齐
+
+## 5. 注意事项
+
+1. 字体处理：
+   - 需要正确映射原PDF字体到系统字体
+   - 确保中文字体可用
+   - 处理字体回退机制
+
+2. 坐标系统：
+   - pdfplumber：从顶部向下
+   - reportlab：从底部向上
+   - 需要进行坐标转换
+
+3. 性能优化：
+   - 缓存字体信息
+   - 优化表格边框检测
+   - 分批处理大文件
+
+## 6. 后续优化
+
+1. 增强功能：
+   - 支持更多文本样式（下划线、删除线等）
+   - 支持图片位置保留
+   - 支持页眉页脚
+
+2. 用户配置：
+   - 提供布局调整接口
+   - 支持自定义字体映射
+   - 自定义标题识别规则 

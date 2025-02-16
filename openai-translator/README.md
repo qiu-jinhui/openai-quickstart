@@ -1,3 +1,14 @@
+## Update Log (2024-03-21)
+
+### New Features
+- Added support for preserving original PDF layout
+  - Implemented preservation of position information for text elements (titles and paragraphs), tables, and images
+  - Added support for extracting and maintaining original font and font size style information
+  - Enhanced table layout processing, including precise extraction of table borders and cell positions
+  - Improved text element classification algorithm for more accurate identification of titles and paragraphs
+
+---
+
 # OpenAI-Translator
 
 <p align="center">

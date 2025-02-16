@@ -179,3 +179,4 @@ log.txt
 /.idea
 /openai-translator/.idea
 /openai-translator/.vscode
+.DS_Store
