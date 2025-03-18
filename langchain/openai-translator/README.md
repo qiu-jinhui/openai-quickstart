@@ -34,7 +34,7 @@ The OpenAI Translator is still in its early stages of development, and I'm activ
 - [X] Timeouts and error handling for robust translation operations.
 - [X] Modular and object-oriented design for easy customization and extension.
 - [x] Add support for other languages and translation directions.
-- [X] Multiple translation styles (standard, novel, news, academic, casual, poetic, technical, humorous).
+- [x] Multiple translation styles (standard, novel, news, academic, casual, poetic, technical, humorous).
 - [ ] Implement a graphical user interface (GUI) for easier use.
 - [ ] Create a web service or API to enable usage in web applications.
 - [ ] Add support for batch processing of multiple PDF files.
