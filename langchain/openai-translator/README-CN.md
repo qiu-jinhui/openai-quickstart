@@ -108,9 +108,25 @@ export OPENAI_API_KEY="sk-xxx"
 python ai_translator/main.py --model_name "gpt-3.5-turbo" --input_file "your_input.pdf" --output_file_format "markdown" --source_language "English" --target_language "Chinese"
 ```
 
+使用ChatGLM模型的例子：
+
+```bash
+# 将您的 ZhipuAI API密钥设置为环境变量
+export ZHIPUAI_API_KEY="sk-xxx"
+python ai_translator/main.py --model_name "chatglm-turbo" --input_file "your_input.pdf" --output_file_format "markdown" --source_language "English" --target_language "Chinese"
+```
+
+或者直接通过命令行参数提供API密钥：
+
+```bash
+python ai_translator/main.py --model_name "chatglm-turbo" --zhipuai_api_key "sk-xxx" --input_file "your_input.pdf" --output_file_format "markdown" --source_language "English" --target_language "Chinese"
+```
+
 #### 使用Gradio图形界面
 
 我们现在提供了基于Gradio的图形界面，让翻译操作更加简单直观：
+
+![Gradio界面](images/gradio_glm.png)
 
 ```bash
 python ai_translator/gradio_server.py
@@ -118,9 +134,24 @@ python ai_translator/gradio_server.py
 
 在打开的界面中，您可以：
 1. 上传PDF文件
-2. 选择源语言和目标语言
-3. 选择翻译风格（标准、小说、新闻等）
-4. 点击翻译按钮开始翻译
+2. 选择翻译模型（包括OpenAI和ChatGLM系列模型）
+3. 如果选择ChatGLM模型，请输入您的ZhipuAI API密钥
+4. 选择源语言和目标语言
+5. 选择翻译风格（标准、小说、新闻等）
+6. 点击翻译按钮开始翻译
+
+## 支持的模型
+
+本项目支持以下语言模型：
+
+### OpenAI模型
+- gpt-3.5-turbo
+- gpt-4
+
+### ChatGLM模型（需要ZhipuAI API密钥）
+- chatglm-turbo：智谱AI开源的通用大语言模型
+- chatglm-pro：具有更强理解和生成能力的高级模型
+- chatglm-std：标准大语言模型，适合一般翻译任务
 
 ## 许可证
 

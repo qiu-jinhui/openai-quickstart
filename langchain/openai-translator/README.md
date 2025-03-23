@@ -109,9 +109,25 @@ export OPENAI_API_KEY="sk-xxx"
 python ai_translator/main.py --model_name "gpt-3.5-turbo" --input_file "your_input.pdf" --output_file_format "markdown" --source_language "English" --target_language "Chinese"
 ```
 
+Example of using the ChatGLM model:
+
+```bash
+# Set your ZhipuAI API key as an env variable
+export ZHIPUAI_API_KEY="sk-xxx"
+python ai_translator/main.py --model_name "chatglm-turbo" --input_file "your_input.pdf" --output_file_format "markdown" --source_language "English" --target_language "Chinese"
+```
+
+Or provide the API key directly as a command-line argument:
+
+```bash
+python ai_translator/main.py --model_name "chatglm-turbo" --zhipuai_api_key "sk-xxx" --input_file "your_input.pdf" --output_file_format "markdown" --source_language "English" --target_language "Chinese"
+```
+
 #### Using the Gradio Graphical Interface:
 
 We now provide a Gradio-based graphical interface to make translation operations simpler and more intuitive:
+
+![Gradio界面](images/gradio_glm.png)
 
 ```bash
 python ai_translator/gradio_server.py
@@ -119,9 +135,24 @@ python ai_translator/gradio_server.py
 
 In the opened interface, you can:
 1. Upload a PDF file
-2. Select source and target languages
-3. Choose a translation style (standard, novel, news, etc.)
-4. Click the translate button to start translation
+2. Select a translation model (including OpenAI and ChatGLM series models)
+3. If you choose a ChatGLM model, enter your ZhipuAI API key
+4. Select source and target languages
+5. Choose a translation style (standard, novel, news, etc.)
+6. Click the translate button to start translation
+
+## Supported Models
+
+This project supports the following language models:
+
+### OpenAI Models
+- gpt-3.5-turbo
+- gpt-4
+
+### ChatGLM Models (requires ZhipuAI API key)
+- chatglm-turbo: An open-source general-purpose large language model from Zhipu AI
+- chatglm-pro: An advanced model with enhanced understanding and generation capabilities
+- chatglm-std: A standard large language model suitable for general translation tasks
 
 ## License
 

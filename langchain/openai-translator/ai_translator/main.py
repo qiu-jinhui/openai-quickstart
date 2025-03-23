@@ -11,6 +11,11 @@ if __name__ == "__main__":
     argument_parser = ArgumentParser()
     args = argument_parser.parse_arguments()
 
+    # 如果提供了ChatGLM API密钥，则设置环境变量
+    if hasattr(args, 'zhipuai_api_key') and args.zhipuai_api_key:
+        os.environ['ZHIPUAI_API_KEY'] = args.zhipuai_api_key
+        LOG.info("ZHIPUAI_API_KEY environment variable has been set")
+
     # 初始化配置单例
     config = TranslationConfig()
     config.initialize(args)    

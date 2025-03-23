@@ -11,3 +11,5 @@ langchain
 gradio
 flask
 langchain_openai
+zhipuai
+langchain_community
